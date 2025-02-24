@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Color Markup Editor</title>
+  <title>Colorizer</title>
   <style>
     html, body {
       margin: 0;
@@ -100,7 +100,8 @@
       btn.className = 'color-button';
       btn.style.backgroundColor = color;
       btn.addEventListener('click', () => {
-        applyColor(color);
+        document.execCommand('foreColor', false, color);
+        setTimeout(updatePreview, 0);
       });
       paletteBright.appendChild(btn);
     });
@@ -111,20 +112,14 @@
       btn.className = 'color-button';
       btn.style.backgroundColor = color;
       btn.addEventListener('click', () => {
-        applyColor(color);
+        document.execCommand('foreColor', false, color);
+        setTimeout(updatePreview, 0);
       });
       paletteDark.appendChild(btn);
     });
 
-    function applyColor(color) {
-      document.execCommand('foreColor', false, color);
-      // Delay to ensure execCommand has updated the DOM
-      setTimeout(updatePreview, 0);
-    }
-
     const editor = document.getElementById('editor');
     editor.addEventListener('input', updatePreview);
-    // Also update on keyup and mouseup in case formatting changes without input event
     editor.addEventListener('keyup', updatePreview);
     editor.addEventListener('mouseup', updatePreview);
 
@@ -153,12 +148,9 @@
           text += processNode(child);
         });
         let color = "";
-        // Check inline style
         if (node.style && node.style.color) {
           color = rgbToHex(node.style.color);
-        } 
-        // Fallback for <font> tags produced by execCommand
-        else if (node.tagName === "FONT" && node.getAttribute('color')) {
+        } else if (node.tagName === "FONT" && node.getAttribute('color')) {
           color = node.getAttribute('color');
         }
         return color ? `<color=${color}>${text}</color>` : text;
@@ -178,8 +170,33 @@
 
     document.getElementById('copyButton').addEventListener('click', () => {
       const markupText = document.getElementById('markup').textContent;
-      navigator.clipboard.writeText(markupText);
+      copyTextToClipboard(markupText);
     });
+
+    function copyTextToClipboard(text) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).catch(() => fallbackCopyTextToClipboard(text));
+      } else {
+        fallbackCopyTextToClipboard(text);
+      }
+    }
+
+    function fallbackCopyTextToClipboard(text) {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.top = "0";
+      textarea.style.left = "0";
+      textarea.style.position = "fixed";
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      try {
+        document.execCommand('copy');
+      } catch (err) {
+        console.error('Fallback: Unable to copy', err);
+      }
+      document.body.removeChild(textarea);
+    }
 
     updatePreview();
   </script>
