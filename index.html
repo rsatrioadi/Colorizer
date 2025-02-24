@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Colorizer</title>
+  <title>Color Markup Editor</title>
   <style>
     html, body {
       margin: 0;
@@ -118,11 +118,15 @@
 
     function applyColor(color) {
       document.execCommand('foreColor', false, color);
-      updatePreview();
+      // Delay to ensure execCommand has updated the DOM
+      setTimeout(updatePreview, 0);
     }
 
     const editor = document.getElementById('editor');
     editor.addEventListener('input', updatePreview);
+    // Also update on keyup and mouseup in case formatting changes without input event
+    editor.addEventListener('keyup', updatePreview);
+    editor.addEventListener('mouseup', updatePreview);
 
     function updatePreview() {
       const markupDiv = document.getElementById('markup');
@@ -149,8 +153,13 @@
           text += processNode(child);
         });
         let color = "";
+        // Check inline style
         if (node.style && node.style.color) {
           color = rgbToHex(node.style.color);
+        } 
+        // Fallback for <font> tags produced by execCommand
+        else if (node.tagName === "FONT" && node.getAttribute('color')) {
+          color = node.getAttribute('color');
         }
         return color ? `<color=${color}>${text}</color>` : text;
       }
