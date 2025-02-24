@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Colorizer</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: sans-serif;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+    .editor {
+      flex: 1;
+      border: 1px solid #ccc;
+      padding: 10px;
+      overflow-y: auto;
+    }
+    .palette {
+      display: flex;
+      flex-direction: column;
+    }
+    .palette-row {
+      display: flex;
+    }
+    .color-button {
+      flex: 1;
+      height: 40px;
+      margin: 2px;
+      border: none;
+    }
+    .markup-container {
+      flex: 1;
+      border-top: 1px solid #ccc;
+      display: flex;
+      flex-direction: column;
+    }
+    .copy-btn {
+      padding: 10px;
+      border: none;
+      background: #007bff;
+      color: #fff;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .markup {
+      flex: 1;
+      padding: 10px;
+      background: #f9f9f9;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div id="editor" class="editor" contenteditable="true"></div>
+    <div class="palette">
+      <div id="palette-bright" class="palette-row"></div>
+      <div id="palette-dark" class="palette-row"></div>
+    </div>
+    <div class="markup-container">
+      <button id="copyButton" class="copy-btn">Copy Markup</button>
+      <div id="markup" class="markup"></div>
+    </div>
+  </div>
+  <script>
+    const hues = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330];
+    const paletteBright = document.getElementById('palette-bright');
+    const paletteDark = document.getElementById('palette-dark');
+
+    function hslToHex(h, s, l) {
+      s /= 100; l /= 100;
+      const c = (1 - Math.abs(2 * l - 1)) * s;
+      const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+      const m = l - c / 2;
+      let r, g, b;
+      if (h < 60) { r = c; g = x; b = 0; }
+      else if (h < 120) { r = x; g = c; b = 0; }
+      else if (h < 180) { r = 0; g = c; b = x; }
+      else if (h < 240) { r = 0; g = x; b = c; }
+      else if (h < 300) { r = x; g = 0; b = c; }
+      else { r = c; g = 0; b = x; }
+      r = Math.round((r + m) * 255);
+      g = Math.round((g + m) * 255);
+      b = Math.round((b + m) * 255);
+      return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+    }
+
+    hues.forEach(hue => {
+      const color = hslToHex(hue, 100, 50);
+      const btn = document.createElement('button');
+      btn.className = 'color-button';
+      btn.style.backgroundColor = color;
+      btn.addEventListener('click', () => {
+        applyColor(color);
+      });
+      paletteBright.appendChild(btn);
+    });
+
+    hues.forEach(hue => {
+      const color = hslToHex(hue, 100, 30);
+      const btn = document.createElement('button');
+      btn.className = 'color-button';
+      btn.style.backgroundColor = color;
+      btn.addEventListener('click', () => {
+        applyColor(color);
+      });
+      paletteDark.appendChild(btn);
+    });
+
+    function applyColor(color) {
+      document.execCommand('foreColor', false, color);
+      updatePreview();
+    }
+
+    const editor = document.getElementById('editor');
+    editor.addEventListener('input', updatePreview);
+
+    function updatePreview() {
+      const markupDiv = document.getElementById('markup');
+      markupDiv.textContent = convertNodeToMarkup(editor);
+    }
+
+    function convertNodeToMarkup(root) {
+      let result = "";
+      root.childNodes.forEach(node => {
+        result += processNode(node);
+      });
+      return result;
+    }
+
+    function processNode(node) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        return node.textContent;
+      } else if (node.nodeType === Node.ELEMENT_NODE) {
+        if (node.tagName === "BR") {
+          return "\n";
+        }
+        let text = "";
+        node.childNodes.forEach(child => {
+          text += processNode(child);
+        });
+        let color = "";
+        if (node.style && node.style.color) {
+          color = rgbToHex(node.style.color);
+        }
+        return color ? `<color=${color}>${text}</color>` : text;
+      }
+      return "";
+    }
+
+    function rgbToHex(color) {
+      if (color.indexOf('#') === 0) return color;
+      const rgb = color.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
+      if (!rgb) return color;
+      const r = parseInt(rgb[1]).toString(16).padStart(2, '0');
+      const g = parseInt(rgb[2]).toString(16).padStart(2, '0');
+      const b = parseInt(rgb[3]).toString(16).padStart(2, '0');
+      return "#" + r + g + b;
+    }
+
+    document.getElementById('copyButton').addEventListener('click', () => {
+      const markupText = document.getElementById('markup').textContent;
+      navigator.clipboard.writeText(markupText);
+    });
+
+    updatePreview();
+  </script>
+</body>
+</html>
